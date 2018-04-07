@@ -20,6 +20,10 @@ The aim of this fork is to cleanup the codebase to allow hacker to easily add th
 To compile it, either use platformio or the Arduino IDE.
 For the Arduino IDE, the VarSpeedServo librarie need to be installed first. 
 
+NOTE: If you download the zip directly from github, you need to rename the extracted folder 'EggDuino-master' into
+'EggDuino', otherwise the Arduino IDE automagic will kick in and screw up everything.
+
+
 Eggduino
 ====
 
