@@ -15,6 +15,7 @@
 #define ENGRAVER_PIN A4 // "SpnDir"
 
 // Buttons
+// just comment the lines using '//' if you don't want or have any.
 #define PRG_BUTTON_PIN A2 // PRG button ("Abort")
 #define PEN_TOGGLE_BUTTON_PIN A1 // pen up/down button ("Hold")
-#define MOTORS_BUTTON_PIN A0 // motors enable button ("Resume")
+#define MOTORS_BUTTON_PIN A0 // motors enable button ("Motor")
