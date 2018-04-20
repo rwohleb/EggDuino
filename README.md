@@ -10,63 +10,157 @@
 <a href="https://www.youtube.com/watch?v=VEAcOQIdkII"><img src="https://raw.githubusercontent.com/papabricole/EggDuino/master/pictures/video.jpg"></a>
 </p>
 
-Forked from https://github.com/cocktailyogi/EggDuino.
-
-The aim of this fork is to cleanup the codebase to allow hacker to easily add their tweaks.
- - config.h: the pin configuration for your board.
- - EBBParser: parser interface for the EBB protocol.
- - EBBHardware: implement the necessary methods to interpret the events and drive the 2 steppers + servo
-
-To compile it, either use platformio or the Arduino IDE.
-For the Arduino IDE, the VarSpeedServo librarie need to be installed first. 
-
-NOTE: If you download the zip directly from github, you need to rename the extracted folder 'EggDuino-master' into
-'EggDuino', otherwise the Arduino IDE automagic will kick in and screw up everything.
-
 
 Eggduino
-====
+========
 
 Arduino Firmware for Eggbot / Spherebot with Inkscape-Integration
 
-Version 1.6a
-tested with Inkscape Portable 0.91, Eggbot Extension and patched eggbot.py
+Forked and heavily modified from https://github.com/cocktailyogi/EggDuino.
 
-Regards: Eggduino-Firmware by Joachim Cerny, 2015
+The aim of this fork is to allow hackers to easily add their own hardware/tweaks.
 
-Thanks for the nice libs ACCELSTEPPER and SERIALCOMMAND, which made this project much easier. Thanks to the Eggbot-Team for such a funny and enjoyable concept! Thanks to my wife and my daughter for their patience. :-)
+# Build the firmware
 
-Features:
+## Using Arduino IDE
 
-- Implemented Eggbot-Protocol-Version 2.1.0
-- Turn-on homing: switch-on position of pen will be taken as reference point.
-- No collision-detection!!
-- Supported Servos: At least one type ;-) I use Arduino Servo-Lib with TG9e- standard servo.
-- Full Arduino-Compatible. I used an Arduino Uno
-- Button-support (3 buttons)
+    - Click the github 'Clone or Download' button, then 'Download ZIP'
+    - Extract the ZIP
+    - Rename the extracted folder into 'EggDuino'
+    - Open 'EggDuino.ino' using the Arduino IDE
+    - Install the 'VarSpeedServo' library
+    - Build & upload firmware
 
-Tested and fully functional with Inkscape.
+## Using Platformio
 
-Installation:
+    - Click the github 'Clone or Download' button, then 'Download ZIP'
+    - Extract the ZIP
+    - Build: 'platformio run'
+    - Upload firmware: 'platformio run --target upload'
 
-- Upload Eggduino.ino with Arduino-IDE or similar tool to your Arudino (i.e. Uno)
-- Disable Autoreset on Arduinoboard (there are several ways to do this... Which one does not matter...)
-- Install Inkscape Tools wit Eggbot extension. Detailed instructions: (You yust need to complete Steps 1 and 2)
-http://wiki.evilmadscientist.com/Installing_software
+# Default Implementation
 
-- Because of an bug in the Eggbot-extension (Function findEiBotBoards()), the Eggduino cannot be detected by default.
-	Hopefully, the guys will fix this later on. But we can fix it on our own.
-    It is quiete easy:
-	
+The default implementation 'EBBHardware' is designed for:
+
+    - arduino nano + cnc shield or similar
+    - optional: autoreset disabled (See Troubleshooting section)
+    - 2x A4988, 1/16 microstepping stepper motor driver
+    - 2x nema 17 stepper motors for the rotation and pen axes
+    - 1x standard rc micro servo for the pen up/down
+    - 3x optional buttons (abort, toggle pen up/down, enable motors)
+
+If your hardware is based on similar specs, you just need to edit 'config.h' and check
+the Arduino pin assignments.
+
+# Setup the Inkscape plugin
+
+    - Install Inkscape 0.91 (0.92 has no cancel buttons)
+    - Install the Eggbot extension:
+
+      http://wiki.evilmadscientist.com/Installing_software
+
+    - The Eggduino cannot be detected by default, but we can fix it on our own:
         - Go to your Inkscape-Installationfolder and navigate to subfolder .\App\Inkscape\share\extensions
-		- open File "eggbot.py" in texteditor and search for line:
-			"Try any devices which seem to have EBB boards attached"
-                - comment that block with "#" like this:
-                		# Try any devices which seem to have EBB boards attached
-				# for strComPort in eggbot_scan.findEiBotBoards():
-				#	serialPort = self.testSerialPort( strComPort )
-				#	if serialPort:
-				#		self.svgSerialPort = strComPort
-				#		return serialPort
-		- In my version lines 1355-1360
- 
+        - Open File "ebb_serial.py" in a texteditor
+        - In the 'findPort()' function, search the line:
+            
+            "if port[2].startswith("USB VID:PID=04D8:FD92"):"
+
+        - Replace "04D8:FD92" by your arduino VID:PID usb identifier (e.g arduino nano clone "USB VID:PID=1A86:7523")
+        - In the 'testPort()' function, search the line:
+
+            serialPort = serial.Serial( comPort, timeout=1.0 ) # 1 second timeout!
+
+        - Replace "timeout=1.0" by "timeout=2.0"
+        - Save the file.
+
+# Software Overview
+
+The main file is EBBParser: it's a c++ interface responsible for parsing the 'EBB EggBot' protocol and
+dispatch the work to different functions. Alone, it does nothing and should not need any modification.
+
+The real work is done in the derived class EBBHardware: it implement the necessary functions declared
+in EBBParser. The list of functions you need to implement are declared in 'EBBParser.h'.
+The one ending with '= 0' (virtual pure) are mandatory and generates compilation errors if not implemented, the
+one without are optional, depends only on what features you are interested in.
+
+MyEggDuino.h: This minimal implementation does nothing.
+
+    #include "EBBParser.h"
+
+    class MyEggDuino : public EBBParser {
+    public:
+        MyEggDuino(Stream& stream);
+    
+        virtual void enableMotor(int axis, bool state)
+        {
+        }
+    
+        virtual void stepperMove(int duration, int numPenSteps, int numRotSteps)
+        {
+        }
+    
+        virtual void setPenState(bool up, short delayMs)
+        {
+        }
+    
+        virtual bool getPenState()
+        {
+            return true;
+        }
+    
+        virtual void setPenUpPos(int percent)
+        {
+        }
+    
+        virtual void setPenDownPos(int percent)
+        {
+        }
+    
+        virtual void setServoRateUp(int percentPerSecond)
+        {
+        }
+    
+        virtual void setServoRateDown(int percentPerSecond)
+        {
+        }
+    
+        virtual bool getPrgButtonState()
+        {
+            return false;
+        }
+        
+        virtual void setPinOutput(char port, int pin, int value)
+        {
+        }
+    
+        virtual void setEngraverState(bool state, int power)
+        {
+        }
+    };
+
+EggDuino.ino
+
+    #include "MyEggDuino.h"
+    
+    MyEggDuino ebb(Serial);
+    
+    void setup()
+    {
+        Serial.begin(9600);
+        ebb.init();
+    }
+    
+    void loop()
+    {
+        ebb.processEvents();
+    }
+
+# Troubleshooting
+
+The arduino is auto reset when a serial communication is initialized. This is an
+Arduino feature for automatic firmware upload.
+This is a problem since the EggBot inkscape plugin sometime re-initialize the serial communication,
+breaking the current paint job.
+To prevent this autoreset, you need to solder a 10uF capacitor between RST and GND pin of the arduino,
+or google 'Disabling Auto Reset On Serial Connection' for alternatives.
